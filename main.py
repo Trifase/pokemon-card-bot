@@ -1,20 +1,19 @@
-import asyncio
-import config
 import json
+import re
 
 import aiohttp
 from bs4 import BeautifulSoup
-
-from telegram import ForceReply, InputMediaPhoto, Update
+from telegram import InputMediaPhoto, Update
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 from telegram.ext.filters import MessageFilter
-import re
+
+import config
 
 
 async def scrape_set(set):
     print(f"Scraping set {set['name']}: {set['length']}")
     cards = []
-    base_url = set['baseURL']
+    base_url = set["baseURL"]
     for i in range(1, set["length"] + 1):
         url = base_url + f"{i:03d}.shtml"
         try:
@@ -113,7 +112,7 @@ async def reply_with_pokemon(update: Update, context: ContextTypes.DEFAULT_TYPE)
     images = []
     pokemon_names = list(set([pokemon.lower() for pokemon in pokemon_names]))
     for pokemon in pokemon_names:
-        pokemon =  pokemon.lower()
+        pokemon = pokemon.lower()
         # print('pokemon:', pokemon)
         image = await get_pokemon_image(pokemon, pokemons)
         if image:
@@ -132,7 +131,10 @@ class PokemonFilter(MessageFilter):
         if matches:
             return True
         return False
+
+
 pokemon_filter = PokemonFilter()
+
 
 def main():
     application = Application.builder().token(config.bot_token).build()
@@ -140,8 +142,8 @@ def main():
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & pokemon_filter, reply_with_pokemon))
     application.add_handler(CommandHandler("scrape", scrape_cards))
 
-
     application.run_polling(allowed_updates=Update.ALL_TYPES)
+
 
 if __name__ == "__main__":
     main()
