@@ -24,7 +24,7 @@ async def scrape_set(set):
             continue
 
         card_data = await parse_single_card(card_raw)
-        print(card_data)
+        # print(card_data)
         if card_data:
             cards.append(card_data)
     return cards
@@ -66,8 +66,8 @@ async def parse_single_card(data):
             info = all_trs[1].get_text(strip=True)
 
         info = info.replace("Trainer", "").replace("Supporter", "")
-        if info.endswith("ex"):
-            info.replace("ex", " EX")
+        if info.endswith("ex") and info != "Pokedex":
+            info = info.replace("ex", " EX")
 
         pk = {"name": info, "image": f"https://www.serebii.net{image}"}
         return pk
@@ -94,23 +94,28 @@ async def get_pokemon_image(pokemon, pokemons):
 
 async def scrape_cards(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cards = []
-    await update.message.reply_text(f"Ti faccio sapere")
+    await update.message.reply_text(f"Oh dammi cinque minuti e ti richiamo, ti faccio sapere io, sì, ciao, ciao, cinque min- sì, ciao.")
     with open("sets.json", "r") as f:
         sets = json.load(f)
     for s in sets:
         print(f"Scraping set {s}")
         cards.extend(await scrape_set(s))
-        print(cards)
+        # print(cards)
     await save_pokemon_data(cards)
+    context.bot_data["cards"] = cards
     await update.message.reply_text(f"Scraped all cards: {len(cards)}")
 
 
 async def reply_with_pokemon(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     pokemon_names = re.findall(r"\[\[(.*?)\]\]", update.message.text)
-    pokemons = await load_pokemons_data()
+    pokemons = context.bot_data.get("cards")
+    if not pokemons:
+        pokemons = await load_pokemons_data()
+        context.bot_data["cards"] = pokemons
     # print(pokemon_names)
     images = []
     pokemon_names = list(set([pokemon.lower() for pokemon in pokemon_names]))
+    print('Card names:', pokemon_names)
     for pokemon in pokemon_names:
         pokemon = pokemon.lower()
         # print('pokemon:', pokemon)
@@ -124,6 +129,15 @@ async def reply_with_pokemon(update: Update, context: ContextTypes.DEFAULT_TYPE)
         media_group = [InputMediaPhoto(image) for image in images[:10]]
         await update.message.reply_media_group(media_group)
 
+async def reload_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    cards = await load_pokemons_data()
+    context.bot_data["cards"] = cards
+    await update.message.reply_text(f"Reloaded all cards: {len(cards)}")
+
+async def post_init(app: Application) -> None:
+    cards = await load_pokemons_data()
+    app.bot_data["cards"] = cards
+    print("Ready!\n")
 
 class PokemonFilter(MessageFilter):
     def filter(self, message):
@@ -131,16 +145,15 @@ class PokemonFilter(MessageFilter):
         if matches:
             return True
         return False
-
-
 pokemon_filter = PokemonFilter()
 
 
 def main():
-    application = Application.builder().token(config.bot_token).build()
+    application = Application.builder().token(config.bot_token).post_init(post_init).build()
 
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & pokemon_filter, reply_with_pokemon))
     application.add_handler(CommandHandler("scrape", scrape_cards))
+    application.add_handler(CommandHandler("reload", reload_cards))
 
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
