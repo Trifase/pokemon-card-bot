@@ -1,13 +1,11 @@
 import json
-import random
 import re
-
+from difflib import SequenceMatcher
 
 import aiohttp
 from bs4 import BeautifulSoup
-from difflib import SequenceMatcher
-from telegram import InputMediaPhoto, Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters, CallbackQueryHandler
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, Update
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 from telegram.ext.filters import MessageFilter
 
 import config
@@ -20,31 +18,33 @@ async def normalize_name(name):
     """
 
     name_parts = name.split()
-    
-    special_suffixes = ['EX', 'GX']
+
+    special_suffixes = ["EX", "GX"]
     has_suffix = name_parts[-1].upper() in special_suffixes if name_parts else False
-    
+
     if has_suffix:
-        base_name = ' '.join(name_parts[:-1])
+        base_name = " ".join(name_parts[:-1])
         suffix = name_parts[-1]
     else:
-        base_name = ' '.join(name_parts)
-        suffix = ''
-    
+        base_name = " ".join(name_parts)
+        suffix = ""
+
     # Normalize the base name
-    normalized = re.sub(r'[^\w\s]', '', base_name).lower().strip()
-    
+    normalized = re.sub(r"[^\w\s]", "", base_name).lower().strip()
+
     # Reattach suffix if it exists
     if suffix:
         normalized = f"{normalized} {suffix.upper()}"
-    
+
     return normalized
+
 
 async def calculate_similarity(s1, s2):
     """
     Calculate similarity ratio between two strings.
     """
     return SequenceMatcher(None, s1, s2).ratio()
+
 
 async def scrape_set(set):
     print(f"Scraping set {set['name']}: {set['length']}")
@@ -121,17 +121,69 @@ async def load_pokemons_data():
     return pokemons
 
 
-async def get_pokemon_image(pokemon, pokemons):
-    for pk in pokemons:
-        if pokemon.lower().strip() in pk["name"].lower().strip():
-            return pk["image"]
-    return None
+async def scrape_cards(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    cards = []
+    await update.message.reply_text(f"Oh dammi cinque minuti e ti richiamo, ti faccio sapere io, sì, ciao, ciao, cinque min- sì, ciao.")
+    with open("sets.json", "r") as f:
+        sets = json.load(f)
+    for s in sets:
+        print(f"Scraping set {s}")
+        cards.extend(await scrape_set(s))
+        # print(cards)
+    await save_pokemon_data(cards)
+    context.bot_data["cards"] = cards
+    await update.message.reply_text(f"Scraped all cards: {len(cards)}")
+
+
+async def find_cards(cards, search_term, similarity_threshold=0.9):
+    """
+    Find cards based on a search term, using fuzzy matching.
+
+    Args:
+        cards (list): List of card dictionaries
+        search_term (str): Term to search for
+        similarity_threshold (float): Minimum similarity ratio to consider a match (0-1)
+
+    Returns:
+        list: List of matching card dictionaries
+    """
+    normalized_search = await normalize_name(search_term)
+    matches = []
+
+    for card in cards:
+        normalized_card_name = await normalize_name(card["name"])
+
+        # If searching for a card with a suffix (like "Venusaur EX"),
+        # only match exact suffix
+        # if ' ' in normalized_search and normalized_search.split()[-1].upper() in ['EX', 'GX', 'V', 'VMAX', 'VSTAR']:
+        #     if normalized_card_name == normalized_search:
+        #         matches.append(card)
+        # else:
+        # For regular searches, use fuzzy matching
+        # If the card has a suffix, only compare against its base name
+        card_base_name = normalized_card_name
+        similarity = await calculate_similarity(normalized_search, card_base_name)
+        # print(f"Comparing {normalized_search} with {card_base_name}: {similarity}")
+
+        if similarity >= similarity_threshold:
+            matches.append(card)
+
+    return matches
+
+
+async def make_buttons(cards, pokemon, user_id, index_n=0):
+    keyboard = []
+    keyboard.append(
+        [InlineKeyboardButton(f"→ {i + 1} ←" if i == index_n else f"{i + 1}", callback_data=f"poke;;{pokemon};;{i};;{user_id}") for i in range(cards)]
+    )
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    return reply_markup
+
 
 async def cambia_pokemon(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # CallbackQueries need to be answered, even if no notification to the user is needed
     # Some clients may have trouble otherwise. See https://core.telegram.org/bots/api#callbackquery
     query = update.callback_query
-
 
     argomenti = query.data
     # poke;;{pokemon};;{i};;{user_id}
@@ -151,67 +203,12 @@ async def cambia_pokemon(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         cards = await find_cards(pokemons, pokemon)
         buttons = await make_buttons(len(cards), pokemon, update.effective_user.id, int(index_n))
         poster_url = cards[int(index_n)]["image"]
-        
+
         await query.edit_message_media(media=InputMediaPhoto(poster_url), reply_markup=buttons)
 
     except Exception as e:
-        print('Exception:', e)
+        print("Exception:", e)
 
-
-async def scrape_cards(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    cards = []
-    await update.message.reply_text(f"Oh dammi cinque minuti e ti richiamo, ti faccio sapere io, sì, ciao, ciao, cinque min- sì, ciao.")
-    with open("sets.json", "r") as f:
-        sets = json.load(f)
-    for s in sets:
-        print(f"Scraping set {s}")
-        cards.extend(await scrape_set(s))
-        # print(cards)
-    await save_pokemon_data(cards)
-    context.bot_data["cards"] = cards
-    await update.message.reply_text(f"Scraped all cards: {len(cards)}")
-
-
-async def find_cards(cards, search_term, similarity_threshold=0.9):
-    """
-    Find cards based on a search term, using fuzzy matching.
-    
-    Args:
-        cards (list): List of card dictionaries
-        search_term (str): Term to search for
-        similarity_threshold (float): Minimum similarity ratio to consider a match (0-1)
-    
-    Returns:
-        list: List of matching card dictionaries
-    """
-    normalized_search = await normalize_name(search_term)
-    matches = []
-    
-    for card in cards:
-        normalized_card_name = await normalize_name(card['name'])
-        
-        # If searching for a card with a suffix (like "Venusaur EX"),
-        # only match exact suffix
-        # if ' ' in normalized_search and normalized_search.split()[-1].upper() in ['EX', 'GX', 'V', 'VMAX', 'VSTAR']:
-        #     if normalized_card_name == normalized_search:
-        #         matches.append(card)
-        # else:
-            # For regular searches, use fuzzy matching
-            # If the card has a suffix, only compare against its base name
-        card_base_name = normalized_card_name
-        similarity = await calculate_similarity(normalized_search, card_base_name)
-        # print(f"Comparing {normalized_search} with {card_base_name}: {similarity}")
-        
-        if similarity >= similarity_threshold:
-            matches.append(card)
-    
-    return matches
-
-async def make_buttons(cards, pokemon, user_id, index_n=0):
-    keyboard = []
-    keyboard.append([InlineKeyboardButton(f"→ {i + 1} ←" if i == index_n else f"{i + 1}" , callback_data=f"poke;;{pokemon};;{i};;{user_id}") for i in range(cards)])
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    return reply_markup
 
 async def reply_with_pokemon(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     pokemon_names = re.findall(r"\[\[(.*?)\]\]", update.message.text)
@@ -229,16 +226,16 @@ async def reply_with_pokemon(update: Update, context: ContextTypes.DEFAULT_TYPE)
         cards_found = await find_cards(pokemons, pokemon)
         if cards_found:
             found_cards[pokemon] = cards_found
-    print('Card names:', pokemon_names)
+    print("Card names:", pokemon_names)
     for pokemon, cards in found_cards.items():
         print(f"{pokemon}: {len(cards)}")
     for pokemon in found_cards:
         images.append(found_cards[pokemon][0]["image"])
 
-    if len(found_cards) == 1: # retrieved a single pokemon
+    if len(found_cards) == 1:  # retrieved a single pokemon
         for pokemon, cards in found_cards.items():
-            if len(cards) > 1: # multiple cards
-                print('(Buttons)')
+            if len(cards) > 1:  # multiple cards
+                print("(Buttons)")
                 buttons = await make_buttons(len(cards), pokemon, update.effective_user.id)
                 await update.message.reply_photo(images[0], reply_markup=buttons)
             else:
@@ -247,15 +244,18 @@ async def reply_with_pokemon(update: Update, context: ContextTypes.DEFAULT_TYPE)
         media_group = [InputMediaPhoto(image) for image in images[:10]]
         await update.message.reply_media_group(media_group)
 
+
 async def reload_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     cards = await load_pokemons_data()
     context.bot_data["cards"] = cards
     await update.message.reply_text(f"Reloaded all cards: {len(cards)}")
 
+
 async def post_init(app: Application) -> None:
     cards = await load_pokemons_data()
     app.bot_data["cards"] = cards
     print("Ready!\n")
+
 
 class PokemonFilter(MessageFilter):
     def filter(self, message):
@@ -263,6 +263,8 @@ class PokemonFilter(MessageFilter):
         if matches:
             return True
         return False
+
+
 pokemon_filter = PokemonFilter()
 
 
