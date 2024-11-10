@@ -165,3 +165,4 @@ logs/
 backups/
 .vscode/settings.json
 db/sqlite2.db
+test.py
