@@ -1,5 +1,6 @@
 [
     {"name": "Genetic Apex", "length": 286, "baseURL": "https://www.serebii.net/tcgpocket/geneticapex/"},
     {"name": "Promo-A", "length": 33, "baseURL": "https://www.serebii.net/tcgpocket/promo-a/"},
-    {"name": "Mythical Island", "length": 86, "baseURL": "https://www.serebii.net/tcgpocket/mythicalisland/"}
+    {"name": "Mythical Island", "length": 86, "baseURL": "https://www.serebii.net/tcgpocket/mythicalisland/"},
+    {"name": "Space-time Smackdown", "length": 207, "baseURL": "https://www.serebii.net/tcgpocket/space-timesmackdown/"}
 ]
