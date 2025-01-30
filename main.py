@@ -135,6 +135,38 @@ async def scrape_cards(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"Scraped all cards: {len(cards)}")
 
 
+async def sets(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not update.message.from_user.id == config.admin_id:
+        await update.message.reply_text("Non sei autorizzato")
+        return
+    with open("sets.json", "r") as f:
+        sets = json.load(f)
+    resp = '<b>Sono presenti i seguenti set:</b>\n'
+    for s in sets:
+        resp += f"Nome: {s['name']}\nURL: {s['baseURL']}\nLunghezza: {s['length']}\n\n"
+    resp2 = 'Se vuoi aggiungerne uno, usa il comando /addset <nome> <url> <lunghezza>'
+    await update.message.reply_html(resp, disable_web_page_preview=True)
+    await update.message.reply_text(resp2)
+
+async def add_set(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not update.message.from_user.id == config.admin_id:
+        await update.message.reply_text("Non sei autorizzato")
+        return
+    args = context.args
+    if not args or len(args) != 3:
+        await update.message.reply_text("Devi specificare nome, URL e lunghezza")
+        return
+    if not args[2].isdigit():
+        await update.message.reply_text("La lunghezza deve essere un numero")
+        return
+    
+    with open("sets.json", "r") as f:
+        sets = json.load(f)
+    sets.append({"name": args[0], "baseURL": args[1], "length": int(args[2])})
+    with open("sets.json", "w") as f:
+        json.dump(sets, f)
+    await update.message.reply_text(f"Set aggiunto: {args[0]}, lunghezza: {args[2]}, URL: {args[1]}")
+    
 async def find_cards(cards, search_term, similarity_threshold=0.9):
     """
     Find cards based on a search term, using fuzzy matching.
@@ -275,6 +307,8 @@ def main():
     application.add_handler(CallbackQueryHandler(cambia_pokemon, pattern=r"^poke;;"))
     application.add_handler(CommandHandler("scrape", scrape_cards))
     application.add_handler(CommandHandler("reload", reload_cards))
+    application.add_handler(CommandHandler("sets", sets))
+    application.add_handler(CommandHandler(["add_set", "addset"], add_set))
 
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
