@@ -123,16 +123,34 @@ async def load_pokemons_data():
 
 async def scrape_cards(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cards = []
-    await update.message.reply_text(f"Oh dammi cinque minuti e ti richiamo, ti faccio sapere io, sì, ciao, ciao, cinque min- sì, ciao.")
+    await update.message.reply_text(f"Oh dammi cinque minuti e ti richiamo, ti faccio sapere io, sì, ciao, ciao, cinque min- sì, ciao. Senti facciamo dieci ok.")
+
     with open("sets.json", "r") as f:
         sets = json.load(f)
+
+    with open("pokemons.json", "r") as pk:
+        previous_cards = json.load(pk)
+
     for s in sets:
+        if s["scraped"]:
+            continue
+
         print(f"Scraping set {s}")
         cards.extend(await scrape_set(s))
-        # print(cards)
-    await save_pokemon_data(cards)
-    context.bot_data["cards"] = cards
-    await update.message.reply_text(f"Scraped all cards: {len(cards)}")
+        s["scraped"] = True
+
+    previous_cards = context.bot_data["cards"]
+    previous_cards.extend(cards)
+
+    context.bot_data["cards"] = previous_cards
+
+    with open("pokemons.json", "w") as f:
+        json.dump(previous_cards, f)
+
+    with open("sets.json", "w") as f:
+        json.dump(sets, f)
+
+    await update.message.reply_text(f"Scraped {len(cards)} cards; total cards: {len(previous_cards)}")
 
 
 async def sets(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -143,7 +161,11 @@ async def sets(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         sets = json.load(f)
     resp = '<b>Sono presenti i seguenti set:</b>\n'
     for s in sets:
+        print("set", s)
         resp += f"Nome: {s['name']}\nURL: {s['baseURL']}\nLunghezza: {s['length']}\n\n"
+        s['scraped'] = False
+    with open("sets.json", "w") as f:
+        json.dump(sets, f)
     resp2 = 'Se vuoi aggiungerne uno, usa il comando /addset <nome> <url> <lunghezza>'
     await update.message.reply_html(resp, disable_web_page_preview=True)
     await update.message.reply_text(resp2)

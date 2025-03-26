@@ -1,7 +1,1 @@
-[
-    {"name": "Genetic Apex", "length": 286, "baseURL": "https://www.serebii.net/tcgpocket/geneticapex/"}, 
-    {"name": "Promo-A", "length": 33, "baseURL": "https://www.serebii.net/tcgpocket/promo-a/"}, 
-    {"name": "Mythical Island", "length": 86, "baseURL": "https://www.serebii.net/tcgpocket/mythicalisland/"},
-    {"name": "Space-time Smackdown", "length": 207, "baseURL": "https://www.serebii.net/tcgpocket/space-timesmackdown/"},
-    {"name": "Triumphant Light", "length": 96, "baseURL": "https://www.serebii.net/tcgpocket/triumphantlight/"}
-    ]
+[{"name": "Genetic Apex", "length": 286, "baseURL": "https://www.serebii.net/tcgpocket/geneticapex/", "scraped": false}, {"name": "Promo-A", "length": 33, "baseURL": "https://www.serebii.net/tcgpocket/promo-a/", "scraped": false}, {"name": "Mythical Island", "length": 86, "baseURL": "https://www.serebii.net/tcgpocket/mythicalisland/", "scraped": false}, {"name": "Space-time Smackdown", "length": 207, "baseURL": "https://www.serebii.net/tcgpocket/space-timesmackdown/", "scraped": false}, {"name": "Triumphant Light", "length": 96, "baseURL": "https://www.serebii.net/tcgpocket/triumphantlight/", "scraped": false}, {"name": "Shining Revelry", "length": 111, "baseURL": "https://www.serebii.net/tcgpocket/shiningrevelry/", "scraped": false}]
