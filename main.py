@@ -161,7 +161,7 @@ async def sets(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         sets = json.load(f)
     resp = '<b>Sono presenti i seguenti set:</b>\n'
     for s in sets:
-        print("set", s)
+        # print("set", s)
         resp += f"Nome: {s['name']}\nURL: {s['baseURL']}\nLunghezza: {s['length']}\n\n"
         s['scraped'] = False
     with open("sets.json", "w") as f:
@@ -184,7 +184,7 @@ async def add_set(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     with open("sets.json", "r") as f:
         sets = json.load(f)
-    sets.append({"name": args[0], "baseURL": args[1], "length": int(args[2])})
+    sets.append({"name": args[0], "baseURL": args[1], "length": int(args[2]), "scraped": False})
     with open("sets.json", "w") as f:
         json.dump(sets, f)
     await update.message.reply_text(f"Set aggiunto: {args[0]}, lunghezza: {args[2]}, URL: {args[1]}")
