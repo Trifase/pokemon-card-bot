@@ -163,10 +163,10 @@ async def sets(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     for s in sets:
         # print("set", s)
         resp += f"Nome: {s['name']}\nURL: {s['baseURL']}\nLunghezza: {s['length']}\n\n"
-        s['scraped'] = False
+        # s['scraped'] = False
     with open("sets.json", "w") as f:
         json.dump(sets, f)
-    resp2 = 'Se vuoi aggiungerne uno, usa il comando /addset <nome> <url> <lunghezza>'
+    resp2 = 'Se vuoi aggiungerne uno, usa il comando /addset <nome> <url> <lunghezza>\nGli underscore nel nome verranno convertiti in spazi.'
     await update.message.reply_html(resp, disable_web_page_preview=True)
     await update.message.reply_text(resp2)
 
@@ -184,7 +184,8 @@ async def add_set(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     with open("sets.json", "r") as f:
         sets = json.load(f)
-    sets.append({"name": args[0], "baseURL": args[1], "length": int(args[2]), "scraped": False})
+    name = args[0].replace('_', ' ')
+    sets.append({"name": name, "baseURL": args[1], "length": int(args[2]), "scraped": False})
     with open("sets.json", "w") as f:
         json.dump(sets, f)
     await update.message.reply_text(f"Set aggiunto: {args[0]}, lunghezza: {args[2]}, URL: {args[1]}")
