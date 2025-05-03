@@ -88,17 +88,23 @@ async def parse_single_card(data):
     pokemon = soup.find("table", class_="tcgtable")
 
     if pokemon:
-        # print(pokemon.prettify())
         image = pokemon.find("td", class_="foocard").find("img")["src"]
         try:
-            info = pokemon.find("td", class_="main").get_text(strip=True)
+            info = pokemon.find("td", class_="main")
+            info = info.get_text(strip=True)
+            # Trainer for Celestial Guardians - we get the card name from the alt of the image
+            if info == '':
+                info = pokemon.find("img", class_="card", alt=True)
+                if info:
+                    info = info["alt"]
+                    name_match = re.search(r"#(?:\d+)\s(.+)", info)
+                    if name_match:
+                        info = name_match.group(1)
+
         except AttributeError:
             info_td = pokemon.find("td", class_="cardinfo")
-            # print(info_td)
             info_table = info_td.find("table")
-            # print(info_table)
             all_trs = info_table.find_all("tr")
-            # print(all_trs)
             info = all_trs[1].get_text(strip=True)
 
         info = info.replace("Trainer", "").replace("Supporter", "")
@@ -262,7 +268,8 @@ async def cambia_pokemon(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await query.edit_message_media(media=InputMediaPhoto(poster_url), reply_markup=buttons)
 
     except Exception as e:
-        print("Exception:", e)
+        pass
+        # print("Exception:", e)
 
 
 async def reply_with_pokemon(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -281,16 +288,17 @@ async def reply_with_pokemon(update: Update, context: ContextTypes.DEFAULT_TYPE)
         cards_found = await find_cards(pokemons, pokemon)
         if cards_found:
             found_cards[pokemon] = cards_found
-    print("Card names:", pokemon_names)
-    for pokemon, cards in found_cards.items():
-        print(f"{pokemon}: {len(cards)}")
+    effective_user_name = update.effective_user.first_name
+    print(f"{effective_user_name} is searching for: {pokemon_names}")
+    # for pokemon, cards in found_cards.items():
+        # print(f"{pokemon}: {len(cards)}")
     for pokemon in found_cards:
         images.append(found_cards[pokemon][0]["image"])
 
     if len(found_cards) == 1:  # retrieved a single pokemon
         for pokemon, cards in found_cards.items():
             if len(cards) > 1:  # multiple cards
-                print("(Buttons)")
+                # print("(Buttons)")
                 buttons = await make_buttons(len(cards), pokemon, update.effective_user.id)
                 await update.message.reply_photo(images[0], reply_markup=buttons)
             else:
