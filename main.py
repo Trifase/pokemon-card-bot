@@ -237,6 +237,20 @@ async def make_buttons(cards, pokemon, user_id, index_n=0):
     keyboard.append(
         [InlineKeyboardButton(f"→ {i + 1} ←" if i == index_n else f"{i + 1}", callback_data=f"poke;;{pokemon};;{i};;{user_id}") for i in range(cards)]
     )
+
+    # if there are more than 6 cards, split into multiple rows
+    if cards > 6:
+        new_keyboard = []
+        row = []
+        for i, button in enumerate(keyboard[0]):
+            row.append(button)
+            if (i + 1) % 6 == 0:
+                new_keyboard.append(row)
+                row = []
+        if row:
+            new_keyboard.append(row)
+        keyboard = new_keyboard
+
     reply_markup = InlineKeyboardMarkup(keyboard)
     return reply_markup
 
@@ -313,6 +327,25 @@ async def reload_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     context.bot_data["cards"] = cards
     await update.message.reply_text(f"Reloaded all cards: {len(cards)}")
 
+async def heartbeat(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Make a GET to betterstack
+    """
+    hb_id = "oi7uz3897eSyPGpLykwXneXm"
+    url = f"https://uptime.betterstack.com/api/v1/heartbeat/{hb_id}"
+
+
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    print("[AUTO] Heartbeat sent successfully.")
+                else:
+                    print(f"[AUTO] Failed to send heartbeat. Status code: {response.status}")
+        except Exception as e:
+            print(f"[AUTO] Error sending heartbeat: {e}")
+
+
 
 async def post_init(app: Application) -> None:
     cards = await load_pokemons_data()
@@ -333,6 +366,9 @@ pokemon_filter = PokemonFilter()
 
 def main():
     application = Application.builder().token(config.bot_token).post_init(post_init).build()
+
+    j = application.job_queue
+    j.run_repeating(heartbeat, interval=60 * 15, data=None, job_kwargs={"misfire_grace_time": 25})
 
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & pokemon_filter, reply_with_pokemon))
     application.add_handler(CallbackQueryHandler(cambia_pokemon, pattern=r"^poke;;"))
